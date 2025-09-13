@@ -1,7 +1,7 @@
 from tinydb import TinyDB, Query
-from models.job import Job
-from models.resum import Resum
-from models.analysis import Analysis
+from analyser.models.job import Job
+from analyser.models.resum import Resum
+from analyser.models.analysis import Analysis
 
 
 class AnalyserDatabase(TinyDB):
@@ -14,7 +14,7 @@ class AnalyserDatabase(TinyDB):
 
     def insert_job(self, job: Job):
         self.jobs.insert(job.model_dump())
-    
+
     def insert_analysis(self, analysis: Analysis):
         self.analysis.insert(analysis.model_dump())
 
@@ -35,17 +35,17 @@ class AnalyserDatabase(TinyDB):
         registros = self.jobs.all()
         sheet_names = [registro['sheet_name'] for registro in registros]
         return sheet_names
-    
+
     def get_resum_by_id(self, id):
         resum = Query()
         result = self.resums.search(resum.id == id)
         return result[0] if result else None
-    
+
     def get_resums_by_job_id(self, job_id):
         resum = Query()
         result = self.resums.search(resum.job_id == job_id)
         return result
-    
+
     def get_analysis_by_job_id(self, job_id):
         analysis = Query()
         result = self.analysis.search(analysis.job_id == job_id)
@@ -63,11 +63,11 @@ class AnalyserDatabase(TinyDB):
     def delete_job_by_id(self, id):
         query = Query()
         self.jobs.remove(query.id == id)
-    
+
     def delete_all_resums_by_job_id(self, job_id):
         resum = Query()
         self.resums.remove(resum.job_id == job_id)
-    
+
     def delete_all_analysis_by_job_id(self, job_id):
         analysis = Query()
         self.analysis.remove(analysis.job_id == job_id)
@@ -75,3 +75,18 @@ class AnalyserDatabase(TinyDB):
     def delete_all_files_by_job_id(self, job_id):
         file = Query()
         self.files.remove(file.job_id == job_id)
+
+    def delete_analysis_by_id(self, analysis_id):
+        """Deleta uma análise específica pelo ID"""
+        analysis = Query()
+        self.analysis.remove(analysis.id == analysis_id)
+
+    def delete_resum_by_id(self, resum_id):
+        """Deleta um resumo específico pelo ID"""
+        resum = Query()
+        self.resums.remove(resum.id == resum_id)
+
+    def delete_file_by_resum_id(self, resum_id):
+        """Deleta arquivo associado a um resumo específico"""
+        file = Query()
+        self.files.remove(file.resum_id == resum_id)

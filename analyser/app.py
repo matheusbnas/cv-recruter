@@ -11,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 
+
 def radar_chart_plotly_express(categories, scores):
     """
     Radar Chart (Plotly Express) com fill='toself'.
@@ -20,10 +21,11 @@ def radar_chart_plotly_express(categories, scores):
     fig = px.line_polar(df, r='r', theta='theta', line_close=True)
     fig.update_traces(fill='toself', line_color='red')  # cor vermelha
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0,5])),
+        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
         showlegend=False
     )
     return fig
+
 
 def radar_chart_basic_scatterpolar(categories, scores):
     """
@@ -34,10 +36,11 @@ def radar_chart_basic_scatterpolar(categories, scores):
         r=scores, theta=categories, fill='toself', line_color='green'
     ))
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0,5])),
+        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
         showlegend=False
     )
     return fig
+
 
 def radar_chart_multiple_trace(categories, job_scores, resum_scores):
     """
@@ -63,13 +66,14 @@ def radar_chart_multiple_trace(categories, job_scores, resum_scores):
         line_color='orange'
     ))
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0,5])),
+        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
         showlegend=True
     )
     return fig
 
 
 st.set_page_config(layout="wide", page_title="Recruter", page_icon=":brain:")
+
 
 def render_analyse():
     # Exemplo: supondo que você tenha uma classe para análise
@@ -81,17 +85,50 @@ def render_analyse():
         with st.expander('Gráfico Geral de Pontuação'):
             bar = st.empty()
 
-
         # Renderiza a tabela de candidatos (AgGrid ou outro) e retorna "candidates" se houver seleções
         candidates = analyse_route.render_grid(option)
 
         # Gráfico de barras geral
-        bar.bar_chart(analyse_route._create_dataframe_to_analyse(), x="Nome", y="score", color="Nome", horizontal=True)
+        bar.bar_chart(analyse_route._create_dataframe_to_analyse(),
+                      x="Nome", y="score", color="Nome", horizontal=True)
 
-        # Botão de limpar análise
-        if st.button('Limpar Análise'):
-            analyse_route.clean_analyse()
-            st.rerun()
+        # Seção de gerenciamento de candidatos
+        st.subheader("🗑️ Gerenciar Candidatos")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            # Botão para deletar candidatos selecionados
+            if not candidates.empty:
+                if st.button('🗑️ Deletar Candidatos Selecionados', type="secondary"):
+                    deleted_count = analyse_route.delete_selected_candidates(
+                        candidates.to_dict('records'))
+                    st.success(
+                        f"✅ {deleted_count} candidato(s) deletado(s) com sucesso!")
+                    st.rerun()
+            else:
+                st.info("ℹ️ Selecione candidatos na tabela acima para deletá-los")
+
+        with col2:
+            # Botão para limpar todas as análises
+            if st.button('⚠️ Limpar TODAS as Análises', type="primary"):
+                if st.checkbox("Confirmo que quero deletar TODOS os candidatos desta vaga"):
+                    analyse_route.clean_analyse()
+                    st.success("✅ Todas as análises foram removidas!")
+                    st.rerun()
+
+        with col3:
+            # Botão para abrir planilha do Google Sheets
+            sheet_name = f"Currículos - {option}"
+            if st.button('📊 Abrir Planilha', type="secondary"):
+                try:
+                    from analyser.service.sheet_creator import SheetCreator
+                    sheet_creator = SheetCreator()
+                    sheet = sheet_creator.client.open(sheet_name)
+                    st.markdown(f"[Abrir Planilha: {sheet_name}]({sheet.url})")
+                except:
+                    st.error(f"❌ Planilha '{sheet_name}' não encontrada")
+                    st.info("💡 Crie a planilha manualmente no Google Sheets")
 
         # # ----------------------------------------------------------------------------
         # #        GRAFO DE TODOS OS CANDIDATOS X SUAS HABILIDADES
@@ -104,7 +141,6 @@ def render_analyse():
         #         name = row["Nome"]
         #         skills = row["Habilidades"]  # Deve ser uma lista de strings
         #         candidate_skills_dict[name] = skills
-        
 
         #     # Crie listas de nós (Node) e arestas (Edge)
         #     nodes = []
@@ -145,7 +181,7 @@ def render_analyse():
         #     config = Config(
         #         width="100%",          # Ocupa toda a largura disponível
         #         height=500,            # Ajuste conforme desejar
-        #         directed=False,        
+        #         directed=False,
         #         nodeHighlightBehavior=True,
         #         highlightColor="#F0F0A0",
         #         collapsible=True,
@@ -160,7 +196,7 @@ def render_analyse():
         #             "fontWeight": "normal",
         #             "highlightFontColor": "#800000",  # Também branco no hover/seleção
         #             "highlightFontSize": 12,
-        #             "highlightFontWeight": "bold", 
+        #             "highlightFontWeight": "bold",
         #         },
         #         link={
         #             "renderLabel": True           # Se quiser rótulos nas arestas, troque para True
@@ -177,10 +213,6 @@ def render_analyse():
         #         edges=edges,
         #         config=config
         #     )
-            
-            
-
-        
 
         # ----------------------------------------------------------------------------
         #         RENDERIZA A VISUALIZAÇÃO DETALHADA DE CADA CANDIDATO
@@ -191,17 +223,20 @@ def render_analyse():
                 _, row = row_data
                 with cols[idx]:
                     with st.container():
-                        candidate_resum = analyse_route.get_resum_by_id(row['resum_id'])
+                        candidate_resum = analyse_route.get_resum_by_id(
+                            row['resum_id'])
                         if candidate_resum:
                             st.header(row['Nome'])
-                            
+
                             competence, strategies, qualifications = analyse_route.get_categories_job()
 
-                            
                             # Exemplos de Radar Charts
-                            fig1 = radar_chart_plotly_express(competence, candidate_resum.get('score_competence'))
-                            fig2 = radar_chart_basic_scatterpolar(strategies, candidate_resum.get('score_strategies'))
-                            fig3 = radar_chart_multiple_trace(qualifications, analyse_route.job.get('score_qualifications'), candidate_resum.get('score_competence'))
+                            fig1 = radar_chart_plotly_express(
+                                competence, candidate_resum.get('score_competence'))
+                            fig2 = radar_chart_basic_scatterpolar(
+                                strategies, candidate_resum.get('score_strategies'))
+                            fig3 = radar_chart_multiple_trace(qualifications, analyse_route.job.get(
+                                'score_qualifications'), candidate_resum.get('score_competence'))
 
                             # Tira títulos do layout
                             fig1.update_layout(title="")
@@ -216,7 +251,7 @@ def render_analyse():
                                 st.plotly_chart(fig2, use_container_width=True)
                             with c3:
                                 st.plotly_chart(fig3, use_container_width=True)
-                                
+
                             # CSS personalizado para expanders
                             st.markdown("""
                                 <style>
@@ -261,11 +296,14 @@ def render_analyse():
                                     key=str(uuid.uuid1())
                                 )
 
+
 def render_curriculum():
     curriculum_route = CurriculumRoute()
-    option = st.selectbox("Escolha sua vaga:", curriculum_route.jobs, index=None)
+    option = st.selectbox("Escolha sua vaga:",
+                          curriculum_route.jobs, index=None)
     if option:
-        uploaded_files = st.file_uploader('Inserir Curriculos', accept_multiple_files=True)
+        uploaded_files = st.file_uploader(
+            'Inserir Curriculos', accept_multiple_files=True)
         button_send = st.empty()
         if button_send.button('Enviar'):
             button_send.empty()
@@ -273,9 +311,11 @@ def render_curriculum():
             if uploaded_files:
                 with st.spinner('Aguarde um momento...'):
                     curriculum_route.create_analyse(uploaded_files, option)
-                message_element.success("Pronto! Pressione 'R' para fazer novos envios")
+                message_element.success(
+                    "Pronto! Pressione 'R' para fazer novos envios")
                 return
             message_element.warning('Você não subiu arquivos para processar!')
+
 
 def render_jobs():
     job_route = JobRoute()
@@ -284,7 +324,7 @@ def render_jobs():
         with st.form(menu_choice):
             job_route.new_job_form(st)
         return
-        
+
     option = st.selectbox("Escolha sua vaga:", job_route.jobs, index=None)
     if option:
         with st.form(menu_choice):
@@ -293,12 +333,13 @@ def render_jobs():
                 return
         job_route.remove_job_form(st, option)
 
+
 with st.sidebar:
     menu_selection = option_menu(
         "Recruter",
-        ["Vagas", "Curriculos", "Analise"], 
-        icons=['card-text', 'file-earmark-pdf', 'clipboard-data'], 
-        menu_icon="cast", 
+        ["Vagas", "Curriculos", "Analise"],
+        icons=['card-text', 'file-earmark-pdf', 'clipboard-data'],
+        menu_icon="cast",
         default_index=0
     )
     st.session_state.menu_selection = menu_selection

@@ -1,15 +1,21 @@
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 import re
+import os
 
 load_dotenv()
 
 
 class LlamaClient:
     def __init__(self):
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY não encontrada nas variáveis de ambiente")
+        
         self.client = ChatOpenAI(
             model_name="gpt-4o-mini",
             temperature=0.1,
+            openai_api_key=api_key,
         )
 
     def generate_response(self, prompt):

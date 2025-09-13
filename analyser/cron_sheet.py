@@ -5,10 +5,12 @@ from models.file import File
 from models.analysis import Analysis
 from models.resum import Resum
 from service.llama_client import LlamaClient
+from service.sheet_creator import SheetCreator
 
 
 database = AnalyserDatabase()
 ai = LlamaClient()
+sheet_creator = SheetCreator()
 
 
 # from tinydb import Query
@@ -102,9 +104,35 @@ def get_files_in_sheets():
                     resum_schema = Resum(id=str(uuid.uuid4()), job_id=job.get('id'), content=resum, file=str(path), opnion=opnion)
                     file = File(file_id=id, job_id=job.get('id')).model_dump()
                     analysis = extract_data_analysis(resum, resum_schema.job_id, resum_schema.id, score).model_dump()
+                    
+                    # Salvar no banco de dados
                     database.insert_resum(resum_schema)
                     database.analysis.insert(analysis)
                     database.files.insert(file)
+                    
+                    # Adicionar candidato à planilha
+                    try:
+                        candidate_data = {
+                            'name': analysis.get('name', 'Nome não identificado'),
+                            'email': '',
+                            'phone': '',
+                            'desired_position': job.get('name', ''),
+                            'experience_years': '',
+                            'education': ', '.join(analysis.get('education', [])),
+                            'languages': ', '.join(analysis.get('languages', [])),
+                            'skills': ', '.join(analysis.get('skills', [])),
+                            'cv_link': '',
+                            'file_id': id,
+                            'analysis_status': 'Analisado',
+                            'final_score': str(score),
+                            'inclusion_date': time.strftime('%Y-%m-%d %H:%M:%S'),
+                            'ai_analysis': opnion[:500] + '...' if len(opnion) > 500 else opnion
+                        }
+                        
+                        sheet_creator.add_candidate_to_sheet(job.get('sheet_name'), candidate_data)
+                        print(f"Candidato {candidate_data['name']} adicionado à planilha")
+                    except Exception as e:
+                        print(f"Erro ao adicionar candidato à planilha: {e}")
                 except Exception as err:
                     if os.path.isfile(path):
                         os.remove(path)

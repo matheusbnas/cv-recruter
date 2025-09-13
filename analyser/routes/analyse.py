@@ -1,9 +1,7 @@
 import os
 import pandas as pd
-from database.tiny_db import AnalyserDatabase
+from analyser.database.tiny_db import AnalyserDatabase
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-
-
 
 
 class AnalyseRoute:
@@ -21,22 +19,23 @@ class AnalyseRoute:
         self.resums = self.database.get_resums_by_job_id(self.job.get('id'))
 
     def _get_all_analysis(self):
-        self.data_analysis = self.database.get_analysis_by_job_id(self.job.get('id'))
+        self.data_analysis = self.database.get_analysis_by_job_id(
+            self.job.get('id'))
         return self.data_analysis
-    
+
     def get_resum_by_resum_id(self, resum_id):
         return self.database.get_resum_by_resum_id(resum_id)
-    
+
     def get_categories_job(self):
         return (
-            self.job.get('competence'), 
-            self.job.get('strategies'), 
+            self.job.get('competence'),
+            self.job.get('strategies'),
             self.job.get('qualifications'),
         )
 
     def _create_selected_candidates_df(self, selected_candidates):
         return pd.DataFrame(selected_candidates)
-    
+
     def get_resum_by_id(self, resum_id):
         return self.database.get_resum_by_id(resum_id)
 
@@ -44,34 +43,37 @@ class AnalyseRoute:
         self.df_candidate = pd.DataFrame(
             self._get_all_analysis(),
             columns=[
-            'name',
-            'education',
-            'skills',
-            'languages',
-            'score',
-            'resum_id',
-            'id'
+                'name',
+                'education',
+                'skills',
+                'languages',
+                'score',
+                'resum_id',
+                'id'
             ]
         )
 
         self.df_candidate.rename(
             columns={
-            'name': 'Nome',
-            'education': 'Educação',
-            'skills': 'Habilidades',
-            'languages': 'Idiomas',
-            'score': 'score',
-            'resum_id': 'resum_id',
-            'id': 'id'
-        }, inplace=True)
+                'name': 'Nome',
+                'education': 'Educação',
+                'skills': 'Habilidades',
+                'languages': 'Idiomas',
+                'score': 'score',
+                'resum_id': 'resum_id',
+                'id': 'id'
+            }, inplace=True)
         return self.df_candidate
 
     def _grid_builder(self):
-        gb = GridOptionsBuilder.from_dataframe(self._create_dataframe_to_analyse())
-        gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=800)
+        gb = GridOptionsBuilder.from_dataframe(
+            self._create_dataframe_to_analyse())
+        gb.configure_pagination(
+            paginationAutoPageSize=False, paginationPageSize=800)
         if self.data_analysis:
             gb.configure_column("score", header_name="score", sort="desc")
-            gb.configure_selection(selection_mode="multiple", use_checkbox=True)
+            gb.configure_selection(
+                selection_mode="multiple", use_checkbox=True)
 
         return gb.build()
 
@@ -84,10 +86,11 @@ class AnalyseRoute:
             update_mode=GridUpdateMode.SELECTION_CHANGED,
             theme='balham',
         )
-        
-        df = self._create_selected_candidates_df(response.get('selected_rows', []))
+
+        df = self._create_selected_candidates_df(
+            response.get('selected_rows', []))
         return df
-    
+
     def _delete_all_files_into_analyse(self):
         for resum in self.resums:
             path = resum.get('file')
@@ -95,8 +98,40 @@ class AnalyseRoute:
                 os.remove(path)
 
     def clean_analyse(self):
+        """Deleta todas as análises da vaga"""
         self._set_resums()
         self.database.delete_all_resums_by_job_id(self.job.get('id'))
         self.database.delete_all_analysis_by_job_id(self.job.get('id'))
         self.database.delete_all_files_by_job_id(self.job.get('id'))
         self._delete_all_files_into_analyse()
+
+    def delete_selected_candidates(self, selected_candidates):
+        """Deleta candidatos selecionados especificamente"""
+        deleted_count = 0
+
+        for candidate in selected_candidates:
+            try:
+                # Deletar análise
+                if 'id' in candidate:
+                    self.database.delete_analysis_by_id(candidate['id'])
+
+                # Deletar resumo
+                if 'resum_id' in candidate:
+                    resum_id = candidate['resum_id']
+                    self.database.delete_resum_by_id(resum_id)
+                    self.database.delete_file_by_resum_id(resum_id)
+
+                    # Deletar arquivo físico se existir
+                    resum = self.database.get_resum_by_id(resum_id)
+                    if resum and 'file' in resum:
+                        file_path = resum['file']
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+
+                deleted_count += 1
+
+            except Exception as e:
+                print(
+                    f"Erro ao deletar candidato {candidate.get('Nome', 'Desconhecido')}: {e}")
+
+        return deleted_count
